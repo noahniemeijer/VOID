@@ -11,6 +11,7 @@ You can install VOID by doing `git clone github.com/noahniemeijer/VOID` This wil
 To run the program, do `python3 main.py`. I am working for an automatical path so u can type 'void'.
 
 To leave the AI Chat, type '/bye' just like you would do in Ollama
+To clear chat history, eather type '/clear' or go to settings and reset the AI.
 
 # EXAMPLES
 
