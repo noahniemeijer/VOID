@@ -176,8 +176,8 @@ def menu_ui(stdscr):
     stdscr.clear()
 
     curses.start_color()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Set color pair for white text on black background
-    stdscr.bkgd(curses.color_pair(1))  # Set background to black
+    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)  
+    stdscr.bkgd(curses.color_pair(1)) 
 
     menu_items = ["Start", "Settings", "Quit"]
     selected_idx = 0
@@ -193,7 +193,7 @@ def menu_ui(stdscr):
 
         for i, text in enumerate(menu_items):
             x = width // 2 - len(text) // 2
-            y = height - 33 + i
+            y = height // 2 + i
             if i == selected_idx:
                 stdscr.addstr(y, x, text, curses.A_REVERSE)
             else:
@@ -214,7 +214,9 @@ def menu_ui(stdscr):
             elif menu_items[selected_idx] == "Quit":
                 break
 
+def start_program():
+    run_install_script()  # Install script
+    curses.wrapper(menu_ui)
 
 if __name__ == "__main__":
-    run_install_script()
-    curses.wrapper(menu_ui)
+    start_program()
