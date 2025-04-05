@@ -216,4 +216,5 @@ def menu_ui(stdscr):
 
 
 if __name__ == "__main__":
+    run_install_script()
     curses.wrapper(menu_ui)
