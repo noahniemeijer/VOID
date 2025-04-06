@@ -1,2 +1,2 @@
-#!/usr/bin/env python3
-/usr/local/bin/void "$@"
+#!/opt/homebrew/bin/python3
+/opt/homebrew/Cellar/void/BETA/libexec/main.py "$@"
