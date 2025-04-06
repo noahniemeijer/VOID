@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 /usr/local/opt/void/libexec/main.py
+python3 /opt/homebrew/Cellar/void/BETA/bin/main.py "$@"
