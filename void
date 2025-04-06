@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 /opt/homebrew/Cellar/void/BETA/bin/main.py "$@"
+python3 "$(dirname "$0")/../libexec/main.py" "$@"
