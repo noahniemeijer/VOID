@@ -22,10 +22,14 @@ _Without brew:_
   - Run `git clone https://github.com/noahniemeijer/VOID`
   - Go into the directory of the project.
   - Then do `python3 main.py`
+
+
 **For Windows:**
   - Run `git clone https://github.com/noahniemeijer/VOID`
   - Go into the directory of the project.
   - Then do `python3 main.py`
+
+
 **For Linux**
   _With brew:_
   - Run `brew install noahniemeijer/void/void`
