@@ -15,9 +15,11 @@ VOID is an easy to setup in-terminal application for the gemma3:1b model powered
 You can install VOID in seperate ways.
 
 **For Mac:**
+
 _With brew:_
   - Run `brew install noahniemeijer/void/void`
   - Then do `void` to run the program.
+
 _Without brew:_
   - Run `git clone https://github.com/noahniemeijer/VOID`
   - Go into the directory of the project.
@@ -31,9 +33,11 @@ _Without brew:_
 
 
 **For Linux**
-  _With brew:_
+  
+_With brew:_
   - Run `brew install noahniemeijer/void/void`
   - Then do `void` to run the program.
+
 _Without brew:_
   - Run `git clone https://github.com/noahniemeijer/VOID`
   - Go into the directory of the project.
