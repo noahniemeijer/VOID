@@ -1,2 +1,2 @@
 #!/opt/homebrew/bin/python3
-/opt/homebrew/bin/python3 /opt/homebrew/Cellar/void/BETA/libexec/main.py "$@"
+/opt/homebrew/bin/python3 /opt/homebrew/Cellar/void/v1.02/libexec/main.py "$@"
