@@ -1,27 +1,34 @@
-#!/opt/homebrew/bin/python3
 import curses
 import subprocess
 import textwrap
 import threading
-import requests
 from datetime import datetime
 import time
 import sys
 
-def run_install_script():
+def ask_ollama(prompt):
     try:
-        subprocess.run(["bash", "install.sh"], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error running install.sh: {e}")
-        exit(1)
+        result = subprocess.run(
+            ["ollama", "run", "gemma3:1b"],
+            input=prompt.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30
+        )
+        if result.returncode == 0:
+            response = result.stdout.decode("utf-8").strip()
+            return response
+        else:
+            error_msg = result.stderr.decode("utf-8").strip()
+            return f"Error: {error_msg}"
+    except subprocess.TimeoutExpired:
+        return "Error: Request timed out."
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 def reset_ai():
-    try:
-        subprocess.Popen(["ollama", "rm", "gemma3:1b"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        subprocess.Popen(["ollama", "pull", "gemma3:1b"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        return f"Error during AI reset: {e}"
-
+    subprocess.run(["ollama", "rm", "gemma3:1b"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(["ollama", "pull", "gemma3:1b"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return "AI has been reset. Please run the program again."
 
 def show_popup(stdscr, message):
@@ -32,6 +39,32 @@ def show_popup(stdscr, message):
     stdscr.refresh()
     time.sleep(2)
 
+def add_bold_markup(stdscr, y, x, text):
+    parts = text.split("**")
+    bold = False
+    cur_x = x
+    for part in parts:
+        if bold:
+            stdscr.addstr(y, cur_x, part, curses.A_BOLD)
+        else:
+            stdscr.addstr(y, cur_x, part)
+        cur_x += len(part)
+        bold = not bold
+
+def render_multiline_text_wrapped_lines(message_content, max_width):
+    logical_lines = message_content.split('\n')
+
+    all_wrapped_lines = []
+    for line_segment in logical_lines:
+        if not line_segment.strip() and all_wrapped_lines and all_wrapped_lines[-1] != "":
+            all_wrapped_lines.append("")
+            continue
+
+        wrapped_parts = textwrap.wrap(line_segment, max_width) or [""]
+        all_wrapped_lines.extend(wrapped_parts)
+
+    return all_wrapped_lines
+
 def chat_ui(stdscr):
     curses.curs_set(1)
     stdscr.clear()
@@ -40,58 +73,77 @@ def chat_ui(stdscr):
 
     chat_log = []
     input_text = ""
-    model = "gemma3:1b"
     lock = threading.Lock()
+    scroll_offset = 0
 
-    try:
-        requests.post("http://localhost:11434/api/reset", json={"model": model})
-    except Exception as e:
-        pass
-
-    def wrap_message(name, message):
-        timestamp = datetime.now().strftime("%H:%M")
-        prefix = f"[{timestamp}] {name}: "
-        wrap_width = width - len(prefix) - 4
-        wrapped = textwrap.wrap(message, wrap_width)
-        return [(prefix, wrapped[0])] + [(" " * len(prefix), line) for line in wrapped[1:]]
+    def get_prefix(name, timestamp_str):
+        return f"[{timestamp_str}] {name}: "
 
     def fetch_response(prompt, idx_to_replace):
-        try:
-            response = requests.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False
-                }
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                reply = data.get("response", "").strip()
-                bot_lines = wrap_message("Bot", reply)
-                with lock:
-                    chat_log[idx_to_replace] = bot_lines
-            else:
-                with lock:
-                    chat_log[idx_to_replace] = wrap_message("Error", f"Status code {response.status_code}")
-
-        except Exception as e:
-            with lock:
-                chat_log[idx_to_replace] = wrap_message("Error", str(e))
+        nonlocal scroll_offset
+        reply = ask_ollama(prompt)
+        current_timestamp = datetime.now().strftime("%H:%M")
+        with lock:
+            chat_log[idx_to_replace] = ("Bot", reply, current_timestamp)
+            scroll_offset = max(0, len(chat_log) - 1)
 
     while True:
         stdscr.clear()
-        y = 0
+        
+        max_chat_display_rows = height - 3 
 
+        message_row_counts = []
+        for name, message_content, _ in chat_log:
+            prefix_len = len(get_prefix(name, "HH:MM"))
+            effective_content_width = width - 2 - prefix_len - 1
+            wrapped_lines = render_multiline_text_wrapped_lines(message_content, effective_content_width)
+            message_row_counts.append(len(wrapped_lines) if wrapped_lines else 1)
+        
+        possible_scroll_offset_for_bottom = 0
+        if chat_log:
+            current_rows_from_bottom = 0
+            for i in range(len(chat_log) - 1, -1, -1):
+                rows_for_msg = message_row_counts[i]
+                current_rows_from_bottom += rows_for_msg
+                if current_rows_from_bottom > max_chat_display_rows:
+                    possible_scroll_offset_for_bottom = i + 1
+                    break
+        
+        scroll_offset = max(0, min(scroll_offset, possible_scroll_offset_for_bottom))
+
+        current_y = 0
         with lock:
-            for entry in chat_log:
-                for prefix, line in entry:
-                    if y >= height - 3:
+            for i in range(scroll_offset, len(chat_log)):
+                name, message_content, timestamp_str = chat_log[i]
+                
+                prefix = get_prefix(name, timestamp_str)
+                
+                effective_content_width = width - 2 - len(prefix) - 1
+                
+                wrapped_message_lines = render_multiline_text_wrapped_lines(message_content, effective_content_width)
+                
+                if wrapped_message_lines:
+                    first_line_content = wrapped_message_lines[0]
+                    
+                    if current_y < max_chat_display_rows:
+                        full_display_line = prefix + first_line_content
+                        add_bold_markup(stdscr, current_y, 2, full_display_line)
+                        current_y += 1
+                    else:
                         break
-                    stdscr.addstr(y, 2, prefix, curses.A_BOLD)
-                    stdscr.addstr(y, 2 + len(prefix), "\t" + line)
-                    y += 1
+
+                    for j in range(1, len(wrapped_message_lines)):
+                        if current_y >= max_chat_display_rows:
+                            break
+                        line_to_render = wrapped_message_lines[j]
+                        add_bold_markup(stdscr, current_y, 2 + len(prefix), line_to_render)
+                        current_y += 1
+                else:
+                    if current_y < max_chat_display_rows:
+                        add_bold_markup(stdscr, current_y, 2, prefix)
+                        current_y += 1
+                    else:
+                        break
 
         stdscr.addstr(height - 2, 2, "> " + input_text[:width - 4])
         stdscr.refresh()
@@ -100,27 +152,48 @@ def chat_ui(stdscr):
         if key == -1:
             continue
 
-        if key in (curses.KEY_BACKSPACE, 127):
+        if key == curses.KEY_UP:
+            if scroll_offset > 0:
+                scroll_offset -= 1
+                time.sleep(0.05)
+        elif key == curses.KEY_DOWN:
+            if scroll_offset < possible_scroll_offset_for_bottom:
+                scroll_offset += 1
+                time.sleep(0.05)
+
+        elif key == curses.KEY_PPAGE:
+            lines_scrolled_up = 0
+            temp_offset = scroll_offset
+            while lines_scrolled_up < max_chat_display_rows and temp_offset > 0:
+                temp_offset -= 1
+                lines_scrolled_up += message_row_counts[temp_offset]
+            scroll_offset = max(0, temp_offset)
+
+
+        elif key == curses.KEY_NPAGE:
+            lines_scrolled_down = 0
+            temp_offset = scroll_offset
+            while lines_scrolled_down < max_chat_display_rows and temp_offset < len(chat_log) - 1:
+                lines_scrolled_down += message_row_counts[temp_offset]
+                temp_offset += 1
+            
+            scroll_offset = min(temp_offset, possible_scroll_offset_for_bottom)
+
+
+        elif key in (curses.KEY_BACKSPACE, 127):
             input_text = input_text[:-1]
         elif key == ord('\n'):
             if input_text.lower() == "/exit":
                 break
-            elif input_text.lower() == "/clear":
-                try:
-                    requests.post("http://localhost:11434/api/reset", json={"model": model})
-                    chat_log.append(wrap_message("System", "Context cleared.")[0:1])
-                except Exception as e:
-                    chat_log.append(wrap_message("Error", f"Clear failed: {str(e)}")[0:1])
-                input_text = ""
-                continue
-
-            user_lines = wrap_message("You", input_text)
+            
+            current_timestamp = datetime.now().strftime("%H:%M")
             with lock:
-                chat_log.append(user_lines)
+                chat_log.append(("You", input_text, current_timestamp))
 
-                placeholder = wrap_message("Bot", "...")
-                chat_log.append(placeholder)
-                placeholder_index = len(chat_log) - 1
+                placeholder_index = len(chat_log)
+                chat_log.append(("Bot", "...", current_timestamp))
+                
+                scroll_offset = max(0, len(chat_log) - 1) 
 
             thread = threading.Thread(target=fetch_response, args=(input_text, placeholder_index))
             thread.daemon = True
@@ -167,7 +240,6 @@ def settings_ui(stdscr):
                 message = reset_ai()
                 show_popup(stdscr, message)
                 sys.exit()  
-
             elif menu_items[selected_idx] == "Back":
                 break
 
@@ -213,11 +285,8 @@ def menu_ui(stdscr):
             elif menu_items[selected_idx] == "Settings":
                 settings_ui(stdscr)
             elif menu_items[selected_idx] == "Quit":
-                break
-
-def start_program():
-    run_install_script()  # Install script
-    curses.wrapper(menu_ui)
+                exit()
 
 if __name__ == "__main__":
-    start_program()
+    subprocess.run(["bash", "install.sh"], check=True)
+    curses.wrapper(menu_ui)
