@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import curses
 import subprocess
 import textwrap
@@ -288,5 +289,4 @@ def menu_ui(stdscr):
                 exit()
 
 if __name__ == "__main__":
-    subprocess.run(["bash", "install.sh"], check=True)
     curses.wrapper(menu_ui)
