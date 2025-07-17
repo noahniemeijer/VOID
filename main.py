@@ -3,8 +3,7 @@ import curses
 import subprocess
 import textwrap
 import threading
-import http.client
-import json
+import requests
 from datetime import datetime
 import time
 import sys
@@ -45,15 +44,9 @@ def chat_ui(stdscr):
     lock = threading.Lock()
 
     try:
-        conn = http.client.HTTPConnection("localhost", 11434)
-        headers = {"Content-Type": "application/json"}
-        body = json.dumps({"model": model})
-        conn.request("POST", "/api/reset", body=body, headers=headers)
-        conn.getresponse()
-        conn.close()
+        requests.post("http://localhost:11434/api/reset", json={"model": model})
     except Exception as e:
         pass
-
 
     def wrap_message(name, message):
         timestamp = datetime.now().strftime("%H:%M")
@@ -64,27 +57,14 @@ def chat_ui(stdscr):
 
     def fetch_response(prompt, idx_to_replace):
         try:
-            conn = http.client.HTTPConnection("localhost", 11434)
-            headers = {"Content-Type": "application/json"}
-            body = json.dumps({
-                "model": model,
-                "prompt": prompt,
-                "stream": False
-            })
-
-            conn.request("POST", "/api/generate", body=body, headers=headers)
-            response = conn.getresponse()
-            if response.status == 200:
-                data = json.loads(response.read().decode())
-                reply = data.get("response", "").strip()
-                bot_lines = wrap_message("Bot", reply)
-                with lock:
-                    chat_log[idx_to_replace] = bot_lines
-            else:
-                with lock:
-                    chat_log[idx_to_replace] = wrap_message("Error", f"Status code {response.status}")
-            conn.close()
-
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False
+                }
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -123,20 +103,16 @@ def chat_ui(stdscr):
         if key in (curses.KEY_BACKSPACE, 127):
             input_text = input_text[:-1]
         elif key == ord('\n'):
-            if input_text.lower() == "/bye":
+            if input_text.lower() == "/exit":
                 break
             elif input_text.lower() == "/clear":
                 try:
-                    conn = http.client.HTTPConnection("localhost", 11434)
-                    headers = {"Content-Type": "application/json"}
-                    body = json.dumps({"model": model})
-                    conn.request("POST", "/api/reset", body=body, headers=headers)
-                    conn.getresponse()
-                    conn.close()
+                    requests.post("http://localhost:11434/api/reset", json={"model": model})
+                    chat_log.append(wrap_message("System", "Context cleared.")[0:1])
                 except Exception as e:
                     chat_log.append(wrap_message("Error", f"Clear failed: {str(e)}")[0:1])
-                    input_text = ""
-                    continue
+                input_text = ""
+                continue
 
             user_lines = wrap_message("You", input_text)
             with lock:
