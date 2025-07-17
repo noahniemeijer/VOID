@@ -8,43 +8,18 @@ VOID is an easy to setup in-terminal application for the gemma3:1b model powered
 # REQUIREMENTS
 
 - Python
-- (Brew)
 
-# USAGE
+# INSTALLATION
 
-You can install VOID in seperate ways.
-
-**For Mac:**
-
-_With brew:_
-  - Run `brew install noahniemeijer/void/void`
-  - Then do `void` to run the program.
-
-_Without brew:_
   - Run `git clone https://github.com/noahniemeijer/VOID`
-  - Go into the directory of the project.
-  - Then do `python3 main.py`
+  - Then go into the directory `cd void`
+  - Then do `bash install.sh`
+      This will install all dependencies and add the program to your PATH. Just restart your terminal and type `void` to start the program. 
 
 
-**For Windows:**
-  - Run `git clone https://github.com/noahniemeijer/VOID`
-  - Go into the directory of the project.
-  - Then do `python3 main.py`
 
-
-**For Linux**
-  
-_With brew:_
-  - Run `brew install noahniemeijer/void/void`
-  - Then do `void` to run the program.
-
-_Without brew:_
-  - Run `git clone https://github.com/noahniemeijer/VOID`
-  - Go into the directory of the project.
-  - Then do `python3 main.py`
-
-To leave the AI Chat, type '/bye' just like you would do in Ollama
-To clear chat history, eather type '/clear' or go to settings and reset the AI.
+To leave the AI Chat, type '/exit'.
+To clear chat history, go to settings and reset the AI.
 
 # EXAMPLES
 
@@ -56,7 +31,7 @@ To clear chat history, eather type '/clear' or go to settings and reset the AI.
 
 - Basic working program using the light model Gemma3:1b. Which is an AI API powered by **_Google Gemini**_.
 - Working AI Reset.
-- Working automatical PATH configuration using brew.
+- Working automatical PATH configuration by the install script.
 
 
 
